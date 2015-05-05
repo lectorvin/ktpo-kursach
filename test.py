@@ -38,7 +38,7 @@ class MainWindow(QtGui.QMainWindow):
         self.fl.addAction(self.exit)
 
         font = QtGui.QFont('Times', 42, 5, False)
-        self.grat = QtGui.QLabel('Welcome to\n our system!')  # FIXME: change
+        self.grat = QtGui.QLabel('Welcome to\n lesson!')
         self.grat.setFont(font)
         self.grat.setAlignment(QtCore.Qt.AlignCenter)
         self.setCentralWidget(self.grat)
@@ -91,8 +91,7 @@ class MainWindow(QtGui.QMainWindow):
                 self.fl.addAction(self.markSelf)
         except Exception as e:
             self.access = 0
-            self.message('Unexpected Error!', 'Error')
-            print(e)        # FIXME: delete this row
+            self.message('Unexpected Error: {0}'.format(e), 'Error')
 
     def message(self, message, name):
         reply = QtGui.QMessageBox.question(self, name,
@@ -118,10 +117,9 @@ class MainWindow(QtGui.QMainWindow):
 
     def mark(self):
         if os.path.isfile(lesson):
-            table[table.Login==int(self.log)][date][0] += 1
-            print(table)
-            print()
-            print(table[table.Login==int(self.log)][date][0])
+            for i in range(len(table)):
+                if table.loc[i].Login == int(self.log):
+                    table.loc[i][date] = 1
             self.message("Congratulation! You've been checked",'Message')
             table.to_csv(table_path,sep=';')
         else:
@@ -177,7 +175,7 @@ def openDB():
            names=['Surname','Name','SecondName','Login','Password'])
     capLogin, capPassword = str(db.irow(-2).Login), db.irow(-2).Password
     teachLogin, teachPassword = str(db.irow(-1).Login), db.irow(-1).Password
-    if teachLogin=='0': teachLogin='000000'      # i know ...
+    if teachLogin=='0': teachLogin='000000'
 
 
 if __name__ == "__main__":
