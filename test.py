@@ -1,4 +1,8 @@
-import os, sys, time
+import os
+import sys
+import time
+import csv
+
 import pandas as pd
 from PyQt4 import QtGui, QtCore
 
@@ -7,6 +11,20 @@ date = "{0}-{1}-{2}".format(t[0],t[1],t[2])
 lesson = "lesson{}.log".format(date)
 table_path = "1652-KTPO-1415-2.txt"
 db_path = "1652-1415-2.txt"
+
+
+class Table(QtGui.QTableWidget):
+    def __init__(self, thestruct, *args):
+        QtGui.QTableWidget.__init__(self, *args)
+        self.data = thestruct    # dict or DataFrame
+        self.setmydata()
+
+    def setmydata(self):
+        for n, key in enumerate(reversed(sorted(self.data))):
+            for m, item in enumerate(self.data[key]):
+                newitem = QtGui.QTableWidgetItem(str(item))
+                self.setItem(m, n, newitem)
+        self.setHorizontalHeaderLabels(list(reversed(sorted(self.data))))
 
 
 class MainWindow(QtGui.QMainWindow):
@@ -24,6 +42,8 @@ class MainWindow(QtGui.QMainWindow):
                                 shortcut='Ctrl+E', triggered=self.login)
         self.open = QtGui.QAction('Open table', self, statusTip='OpenDB',
                                 shortcut="Ctrl+O", triggered=self.openDB)
+        self.save = QtGui.QAction('Save table', self, statusTip='SaveDB',
+                                shortcut="Ctrl+S", triggered=self.saveDB)
         self.exit = QtGui.QAction('Close app', self, statusTip="Close app",
                                 shortcut='Ctrl+Q', triggered=self.close)
         self.startLes = QtGui.QAction('Start lesson', self,
@@ -48,12 +68,28 @@ class MainWindow(QtGui.QMainWindow):
         self.statusBar().showMessage('Ready')
 
     def openDB(self):
-        font = QtGui.QFont('Courier', 10, 1, False)
-        self.editor = QtGui.QTextEdit()
-        self.editor.setFont(font)
-        self.setCentralWidget(self.editor)
-        self.editor.setText('')
-        self.editor.setText(table.to_csv(sep='\t'))
+        self.qtable = Table(table, table.shape[0], table.shape[1])
+        self.setCentralWidget(self.qtable)
+
+    def saveDB(self):
+        try:
+            with open(table_path, 'w') as stream:
+                cLinea = ''
+                for k in self.qtable.data:
+                    cLinea += k + ";"
+                cLinea = cLinea[:-1] + '\n'
+                stream.write(cLinea)
+                cLinea = ''
+
+                for fila in range(self.qtable.rowCount()):
+                    for columna in range(self.qtable.columnCount()):
+                        cLinea += str(self.qtable.item(fila, columna).data(QtCore.Qt.DisplayRole)) + ';'
+                    cLinea = cLinea[:-1] + "\n"
+                    stream.write(cLinea)
+                    cLinea = ''
+        except NameError as e:
+            self.message('Nothing to save!','Error')
+            print(e)
 
     def closeEvent(self, event):
         reply = QtGui.QMessageBox.question(self, 'Message',
@@ -73,6 +109,7 @@ class MainWindow(QtGui.QMainWindow):
                     self.access = 2   # teacher
                     self.fl = self.menubar.addMenu('&Lesson')
                     self.fl.addAction(self.open)
+                    self.fl.addAction(self.save)
                     self.fl.addAction(self.startLes)
                     self.fl.addAction(self.endLes)
                     self.message('Welcome, master!', 'Message')
@@ -105,8 +142,7 @@ class MainWindow(QtGui.QMainWindow):
             self.message('Lesson has begun', 'Message')
             table[date] = pd.Series([0 for _ in range(len(table))])
             table.to_csv(table_path,sep=';')
-            if self.editor:
-                self.openDB()
+            self.openDB()
 
     def endLesson(self):
         if not(os.path.isfile(lesson)): 
@@ -117,10 +153,14 @@ class MainWindow(QtGui.QMainWindow):
 
     def mark(self):
         if os.path.isfile(lesson):
-            for i in range(len(table)):
+            for i in range(len(table)): 
                 if table.loc[i].Login == int(self.log):
-                    table.loc[i][date] = 1
-            self.message("Congratulation! You've been checked",'Message')
+                    if table.loc[i][date]:
+                        self.message("You've been checked already",'Error')
+                    else:
+                        table.loc[i][date] = 1
+                        self.message("Congratulation! You've been checked",
+                                     'Message')
             table.to_csv(table_path,sep=';')
         else:
             self.message("Now it isn't lesson", 'Error')
@@ -185,6 +225,10 @@ if __name__ == "__main__":
     else:
         openTable()
     app = QtGui.QApplication(sys.argv)
+    """
+    tb = Table(table, table.shape[0], table.shape[1])
+    tb.show()
+    """
     main = MainWindow()
     main.show()
     app.exec_()
